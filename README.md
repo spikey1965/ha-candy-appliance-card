@@ -6,6 +6,8 @@ A washer and tumble dryer card for **Candy / Haier / Hoover Simply-Fi** machines
 The machine is drawn on the card with a progress ring round the door, the time left on its display, and the
 laundry turning while it runs. You can start, pause and stop the washer from the card.
 
+**📖 [Step-by-step guide and live demo](https://mymediabuild.uk/home-assistant-candy-washer-dryer-card/)** · **☕ [Buy me a coffee](https://buymeacoffee.com/bobgreggr)**
+
 > **Beta.** I don't own a Candy machine. The card is built from the integration's source code and tested against
 > simulated states. If you try it, please [open an issue](../../issues) with your model and what you see.
 > That's how it gets out of beta.
@@ -80,6 +82,14 @@ Keys for `entities`: `phase remaining program temp spin fill finish starts estim
 - **Something shows "—":** open Developer Tools → States, search for your machine, and set that entity under `entities:`.
   Then please open an issue with the entity list so the card can find it next time.
 - **Dryer programme shows a number:** that's what the integration reports for dryers.
+
+## Support and requests
+
+I build and look after this card in my spare time.
+
+- **Found a bug?** [Open an issue](../../issues/new/choose) and fill in the form. A screenshot and the entity list help a lot.
+- **Want another brand or integration?** Pull requests are very welcome. I can only test machines I own, so I can't promise to add new ones myself. Use the "Support for another machine" form so all the details are in one place.
+- **Like the card?** A ⭐ on GitHub helps other people find it, and you can [buy me a coffee](https://buymeacoffee.com/bobgreggr) ☕. More free Home Assistant cards and guides at [mymediabuild.uk](https://mymediabuild.uk).
 
 ## Credits
 
