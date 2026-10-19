@@ -17,6 +17,7 @@
 //   favourites: [Cotton, Synthetics]     programme names (as in the integration's Wash program select) shown as quick picks
 //   show_start: false                     hide the programme picker
 //   max_width: 380px
+//   language: it                          optional: en it fr es de nl pl pt. Default: your Home Assistant profile language
 //   style: photo | drawn                  photo (default) = built-in illustrations; drawn = a simple built-in drawing
 //   finish: white | graphite | black      colour of the built-in machines (default white)
 //   images: /local/myimg/                 optional: your own washer.svg, dryer.svg and laundry-drum.webp
@@ -26,7 +27,7 @@
 // BETA: written from the integration's source and tested against simulated states, not a real machine yet.
 
 
-const CANDY_CARD_VERSION = "0.1.0";
+const CANDY_CARD_VERSION = "0.2.0";
 
 
 // Built-in pictures (illustrations drawn for this card), so it's a single file that installs through HACS.
@@ -97,11 +98,167 @@ const KEYS = {
 };
 const MAIN_KEYS = { washing_machine: "washer", tumble_dryer: "dryer" };
 const DEFAULTS = {
-  washer: { entity: "sensor.washing_machine", title: "Washer", colour: "#4fb3ff" },
-  dryer:  { entity: "sensor.tumble_dryer", title: "Dryer", colour: "#ffb44f" },
+  washer: { entity: "sensor.washing_machine", colour: "#4fb3ff" },
+  dryer:  { entity: "sensor.tumble_dryer", colour: "#ffb44f" },
 };
-// the dryer's dry_level attribute (DryerCycleState in the integration)
-const DRY_LEVELS = { 0: "No dry", 1: "Iron dry", 2: "Hang dry", 3: "Store dry", 4: "Bone dry" };
+// Card text in each language. The language comes from your Home Assistant profile (or language: in the card's options);
+// anything not listed falls back to English. The integration reports states, phases and dryness in English, so those are
+// translated here too (keys are the integration's own values). Corrections welcome: open a pull request on GitHub.
+const I18N = {
+  en: {
+    washer: "Washer", dryer: "Dryer", off: "Off", ready: "Ready", running: "Running", paused: "Paused", delayed: "Delayed start",
+    finished: "Finished", error: "Error", unavailable: "Unavailable", sending: "Sending…", starting: "Starting…",
+    pause: "Pause", stop: "Stop", start: "Start", cancel: "Cancel", yes: "Yes", programme: "Programme", progN: "Programme {n}",
+    tempSpin: "Temp · Spin", dryness: "Dryness", ends: "Ends", starts: "Starts", load: "Load", cycles: "Cycles",
+    startsIn: "Starts in", end: "End",
+    askStop: "Stop the {name}? This cancels the current cycle.", askStart: "Start {p} on the {name}?",
+    noButton: "Couldn't find the {k} button. Is the integration in Full Control mode?",
+    sendFail: "Couldn't send that: {e}", startFail: "Couldn't start: {e}",
+    machineError: "The machine reports an error{code}. Check it, or the notification in Home Assistant.", code: " (code {c})",
+    tank: "Empty the water tank.", filter: "Clean the filter.",
+    pausedNote: "Paused. Carry on from the machine (Candy can't resume remotely).",
+    remoteOff: "Remote Control is off. Switch it on at the machine to control it from here.", remote: "Remote control",
+    doorOpen: "Door open", doorClosed: "Door closed", doorLocked: "Door locked (cycle running)", doorUnlocked: "Door unlocked",
+    level: "Level {n}", dry: ["No dry", "Iron dry", "Hang dry", "Store dry", "Bone dry"],
+    phase: {},
+  },
+  it: {
+    washer: "Lavatrice", dryer: "Asciugatrice", off: "Spenta", ready: "Pronta", running: "In funzione", paused: "In pausa",
+    delayed: "Avvio ritardato", finished: "Finito", error: "Errore", unavailable: "Non disponibile", sending: "Invio…",
+    starting: "Avvio…", pause: "Pausa", stop: "Stop", start: "Avvia", cancel: "Annulla", yes: "Sì", programme: "Programma",
+    progN: "Programma {n}", tempSpin: "Temp · Centrif.", dryness: "Asciugatura", ends: "Fine", starts: "Inizio", load: "Carico",
+    cycles: "Cicli", startsIn: "Inizia tra", end: "Fine",
+    askStop: "Fermare il ciclo? Il programma in corso verrà annullato.", askStart: "Avviare {p}?",
+    noButton: "Pulsante {k} non trovato. L'integrazione è in modalità Controllo completo?",
+    sendFail: "Invio non riuscito: {e}", startFail: "Avvio non riuscito: {e}",
+    machineError: "La macchina segnala un errore{code}. Controllala, o guarda la notifica in Home Assistant.", code: " (codice {c})",
+    tank: "Svuota il serbatoio dell'acqua.", filter: "Pulisci il filtro.",
+    pausedNote: "In pausa. Riprendi dalla macchina (Candy non permette di riprendere a distanza).",
+    remoteOff: "Il controllo remoto è disattivato. Attivalo sulla macchina per comandarla da qui.", remote: "Controllo remoto",
+    doorOpen: "Oblò aperto", doorClosed: "Oblò chiuso", doorLocked: "Oblò bloccato (ciclo in corso)", doorUnlocked: "Oblò sbloccato",
+    level: "Livello {n}", dry: ["Senza asciugatura", "Pronto stiro", "Asciutto no stiro", "Asciutto armadio", "Extra asciutto"],
+    phase: { "Pre-wash": "Prelavaggio", Wash: "Lavaggio", Rinse: "Risciacquo", "Last rinse": "Ultimo risciacquo", End: "Fine",
+      Drying: "Asciugatura", Error: "Errore", Steam: "Vapore", "Spin - Good Night": "Centrifuga notte", Spin: "Centrifuga",
+      "Pre-heating": "Preriscaldamento", Running: "In funzione" },
+  },
+  fr: {
+    washer: "Lave-linge", dryer: "Sèche-linge", off: "Éteint", ready: "Prêt", running: "En marche", paused: "En pause",
+    delayed: "Départ différé", finished: "Terminé", error: "Erreur", unavailable: "Indisponible", sending: "Envoi…",
+    starting: "Démarrage…", pause: "Pause", stop: "Arrêter", start: "Démarrer", cancel: "Annuler", yes: "Oui",
+    programme: "Programme", progN: "Programme {n}", tempSpin: "Temp · Essorage", dryness: "Séchage", ends: "Fin", starts: "Début",
+    load: "Charge", cycles: "Cycles", startsIn: "Début dans", end: "Fin",
+    askStop: "Arrêter le cycle ? Le programme en cours sera annulé.", askStart: "Démarrer {p} ?",
+    noButton: "Bouton {k} introuvable. L'intégration est-elle en mode Contrôle total ?",
+    sendFail: "Échec de l'envoi : {e}", startFail: "Échec du démarrage : {e}",
+    machineError: "La machine signale une erreur{code}. Vérifiez-la, ou la notification dans Home Assistant.", code: " (code {c})",
+    tank: "Videz le réservoir d'eau.", filter: "Nettoyez le filtre.",
+    pausedNote: "En pause. Reprenez sur la machine (Candy ne permet pas de reprendre à distance).",
+    remoteOff: "Le contrôle à distance est désactivé. Activez-le sur la machine pour la piloter d'ici.", remote: "Contrôle à distance",
+    doorOpen: "Hublot ouvert", doorClosed: "Hublot fermé", doorLocked: "Hublot verrouillé (cycle en cours)", doorUnlocked: "Hublot déverrouillé",
+    level: "Niveau {n}", dry: ["Sans séchage", "Prêt à repasser", "Prêt à suspendre", "Prêt à ranger", "Extra sec"],
+    phase: { "Pre-wash": "Prélavage", Wash: "Lavage", Rinse: "Rinçage", "Last rinse": "Dernier rinçage", End: "Fin",
+      Drying: "Séchage", Error: "Erreur", Steam: "Vapeur", "Spin - Good Night": "Essorage nuit", Spin: "Essorage",
+      "Pre-heating": "Préchauffage", Running: "En marche" },
+  },
+  es: {
+    washer: "Lavadora", dryer: "Secadora", off: "Apagada", ready: "Lista", running: "En marcha", paused: "En pausa",
+    delayed: "Inicio diferido", finished: "Terminado", error: "Error", unavailable: "No disponible", sending: "Enviando…",
+    starting: "Iniciando…", pause: "Pausa", stop: "Parar", start: "Iniciar", cancel: "Cancelar", yes: "Sí", programme: "Programa",
+    progN: "Programa {n}", tempSpin: "Temp · Centrif.", dryness: "Secado", ends: "Termina", starts: "Empieza", load: "Carga",
+    cycles: "Ciclos", startsIn: "Empieza en", end: "Fin",
+    askStop: "¿Parar el ciclo? Se cancelará el programa en curso.", askStart: "¿Iniciar {p}?",
+    noButton: "No se encuentra el botón {k}. ¿Está la integración en modo Control total?",
+    sendFail: "No se pudo enviar: {e}", startFail: "No se pudo iniciar: {e}",
+    machineError: "La máquina indica un error{code}. Revísala o mira la notificación en Home Assistant.", code: " (código {c})",
+    tank: "Vacía el depósito de agua.", filter: "Limpia el filtro.",
+    pausedNote: "En pausa. Continúa desde la máquina (Candy no permite reanudar a distancia).",
+    remoteOff: "El control remoto está desactivado. Actívalo en la máquina para controlarla desde aquí.", remote: "Control remoto",
+    doorOpen: "Puerta abierta", doorClosed: "Puerta cerrada", doorLocked: "Puerta bloqueada (ciclo en marcha)", doorUnlocked: "Puerta desbloqueada",
+    level: "Nivel {n}", dry: ["Sin secado", "Listo para planchar", "Listo para colgar", "Listo para guardar", "Extra seco"],
+    phase: { "Pre-wash": "Prelavado", Wash: "Lavado", Rinse: "Aclarado", "Last rinse": "Último aclarado", End: "Fin",
+      Drying: "Secado", Error: "Error", Steam: "Vapor", "Spin - Good Night": "Centrifugado noche", Spin: "Centrifugado",
+      "Pre-heating": "Precalentamiento", Running: "En marcha" },
+  },
+  de: {
+    washer: "Waschmaschine", dryer: "Trockner", off: "Aus", ready: "Bereit", running: "Läuft", paused: "Pausiert",
+    delayed: "Startvorwahl", finished: "Fertig", error: "Fehler", unavailable: "Nicht verfügbar", sending: "Senden…",
+    starting: "Startet…", pause: "Pause", stop: "Stopp", start: "Starten", cancel: "Abbrechen", yes: "Ja", programme: "Programm",
+    progN: "Programm {n}", tempSpin: "Temp · Schleudern", dryness: "Trockengrad", ends: "Ende", starts: "Start", load: "Beladung",
+    cycles: "Zyklen", startsIn: "Start in", end: "Ende",
+    askStop: "Programm stoppen? Der laufende Durchgang wird abgebrochen.", askStart: "{p} starten?",
+    noButton: "Taste {k} nicht gefunden. Ist die Integration im Modus „Full Control“?",
+    sendFail: "Senden fehlgeschlagen: {e}", startFail: "Start fehlgeschlagen: {e}",
+    machineError: "Die Maschine meldet einen Fehler{code}. Bitte prüfen oder die Benachrichtigung in Home Assistant ansehen.", code: " (Code {c})",
+    tank: "Wassertank leeren.", filter: "Flusensieb reinigen.",
+    pausedNote: "Pausiert. An der Maschine fortsetzen (Candy kann nicht aus der Ferne fortsetzen).",
+    remoteOff: "Fernsteuerung ist aus. An der Maschine einschalten, um sie von hier zu steuern.", remote: "Fernsteuerung",
+    doorOpen: "Tür offen", doorClosed: "Tür geschlossen", doorLocked: "Tür verriegelt (Programm läuft)", doorUnlocked: "Tür entriegelt",
+    level: "Stufe {n}", dry: ["Ohne Trocknen", "Bügeltrocken", "Hängetrocken", "Schranktrocken", "Extra trocken"],
+    phase: { "Pre-wash": "Vorwäsche", Wash: "Waschen", Rinse: "Spülen", "Last rinse": "Letztes Spülen", End: "Ende",
+      Drying: "Trocknen", Error: "Fehler", Steam: "Dampf", "Spin - Good Night": "Schleudern Nacht", Spin: "Schleudern",
+      "Pre-heating": "Vorheizen", Running: "Läuft" },
+  },
+  nl: {
+    washer: "Wasmachine", dryer: "Droger", off: "Uit", ready: "Klaar", running: "Bezig", paused: "Gepauzeerd",
+    delayed: "Uitgestelde start", finished: "Voltooid", error: "Fout", unavailable: "Niet beschikbaar", sending: "Versturen…",
+    starting: "Starten…", pause: "Pauze", stop: "Stop", start: "Start", cancel: "Annuleren", yes: "Ja", programme: "Programma",
+    progN: "Programma {n}", tempSpin: "Temp · Centrif.", dryness: "Droogniveau", ends: "Klaar om", starts: "Start om",
+    load: "Belading", cycles: "Cycli", startsIn: "Start over", end: "Einde",
+    askStop: "Programma stoppen? Het lopende programma wordt geannuleerd.", askStart: "{p} starten?",
+    noButton: "Knop {k} niet gevonden. Staat de integratie op Full Control?",
+    sendFail: "Versturen mislukt: {e}", startFail: "Starten mislukt: {e}",
+    machineError: "De machine meldt een fout{code}. Controleer hem, of bekijk de melding in Home Assistant.", code: " (code {c})",
+    tank: "Leeg het waterreservoir.", filter: "Maak het filter schoon.",
+    pausedNote: "Gepauzeerd. Ga verder op de machine (Candy kan niet op afstand hervatten).",
+    remoteOff: "Bediening op afstand staat uit. Zet het aan op de machine om hem hier te bedienen.", remote: "Bediening op afstand",
+    doorOpen: "Deur open", doorClosed: "Deur dicht", doorLocked: "Deur vergrendeld (programma bezig)", doorUnlocked: "Deur ontgrendeld",
+    level: "Niveau {n}", dry: ["Niet drogen", "Strijkdroog", "Hangdroog", "Kastdroog", "Extra droog"],
+    phase: { "Pre-wash": "Voorwas", Wash: "Wassen", Rinse: "Spoelen", "Last rinse": "Laatste spoeling", End: "Einde",
+      Drying: "Drogen", Error: "Fout", Steam: "Stoom", "Spin - Good Night": "Centrifugeren nacht", Spin: "Centrifugeren",
+      "Pre-heating": "Voorverwarmen", Running: "Bezig" },
+  },
+  pl: {
+    washer: "Pralka", dryer: "Suszarka", off: "Wyłączona", ready: "Gotowa", running: "Pracuje", paused: "Wstrzymana",
+    delayed: "Opóźniony start", finished: "Zakończono", error: "Błąd", unavailable: "Niedostępna", sending: "Wysyłanie…",
+    starting: "Uruchamianie…", pause: "Pauza", stop: "Stop", start: "Start", cancel: "Anuluj", yes: "Tak", programme: "Program",
+    progN: "Program {n}", tempSpin: "Temp · Wirowanie", dryness: "Suszenie", ends: "Koniec", starts: "Start", load: "Załadunek",
+    cycles: "Cykle", startsIn: "Start za", end: "Koniec",
+    askStop: "Zatrzymać cykl? Bieżący program zostanie anulowany.", askStart: "Uruchomić {p}?",
+    noButton: "Nie znaleziono przycisku {k}. Czy integracja działa w trybie Full Control?",
+    sendFail: "Nie udało się wysłać: {e}", startFail: "Nie udało się uruchomić: {e}",
+    machineError: "Urządzenie zgłasza błąd{code}. Sprawdź je lub zobacz powiadomienie w Home Assistant.", code: " (kod {c})",
+    tank: "Opróżnij zbiornik na wodę.", filter: "Wyczyść filtr.",
+    pausedNote: "Wstrzymano. Wznów na urządzeniu (Candy nie pozwala wznowić zdalnie).",
+    remoteOff: "Zdalne sterowanie jest wyłączone. Włącz je na urządzeniu, aby sterować stąd.", remote: "Zdalne sterowanie",
+    doorOpen: "Drzwi otwarte", doorClosed: "Drzwi zamknięte", doorLocked: "Drzwi zablokowane (trwa cykl)", doorUnlocked: "Drzwi odblokowane",
+    level: "Poziom {n}", dry: ["Bez suszenia", "Do prasowania", "Do powieszenia", "Do szafy", "Ekstra suche"],
+    phase: { "Pre-wash": "Pranie wstępne", Wash: "Pranie", Rinse: "Płukanie", "Last rinse": "Ostatnie płukanie", End: "Koniec",
+      Drying: "Suszenie", Error: "Błąd", Steam: "Para", "Spin - Good Night": "Wirowanie nocne", Spin: "Wirowanie",
+      "Pre-heating": "Podgrzewanie", Running: "Pracuje" },
+  },
+  pt: {
+    washer: "Máquina de lavar", dryer: "Máquina de secar", off: "Desligada", ready: "Pronta", running: "A funcionar",
+    paused: "Em pausa", delayed: "Início diferido", finished: "Terminado", error: "Erro", unavailable: "Indisponível",
+    sending: "A enviar…", starting: "A iniciar…", pause: "Pausa", stop: "Parar", start: "Iniciar", cancel: "Cancelar", yes: "Sim",
+    programme: "Programa", progN: "Programa {n}", tempSpin: "Temp · Centrif.", dryness: "Secagem", ends: "Termina",
+    starts: "Começa", load: "Carga", cycles: "Ciclos", startsIn: "Começa em", end: "Fim",
+    askStop: "Parar o ciclo? O programa em curso será cancelado.", askStart: "Iniciar {p}?",
+    noButton: "Botão {k} não encontrado. A integração está no modo Controlo total?",
+    sendFail: "Não foi possível enviar: {e}", startFail: "Não foi possível iniciar: {e}",
+    machineError: "A máquina indica um erro{code}. Verifique-a ou veja a notificação no Home Assistant.", code: " (código {c})",
+    tank: "Esvazie o depósito de água.", filter: "Limpe o filtro.",
+    pausedNote: "Em pausa. Retome na máquina (a Candy não permite retomar à distância).",
+    remoteOff: "O controlo remoto está desligado. Ligue-o na máquina para a controlar daqui.", remote: "Controlo remoto",
+    doorOpen: "Porta aberta", doorClosed: "Porta fechada", doorLocked: "Porta bloqueada (ciclo em curso)", doorUnlocked: "Porta desbloqueada",
+    level: "Nível {n}", dry: ["Sem secagem", "Pronto a passar", "Pronto a pendurar", "Pronto a guardar", "Extra seco"],
+    phase: { "Pre-wash": "Pré-lavagem", Wash: "Lavagem", Rinse: "Enxaguamento", "Last rinse": "Último enxaguamento", End: "Fim",
+      Drying: "Secagem", Error: "Erro", Steam: "Vapor", "Spin - Good Night": "Centrifugação noturna", Spin: "Centrifugação",
+      "Pre-heating": "Pré-aquecimento", Running: "A funcionar" },
+  },
+};
+// "pt-BR" -> "pt", "de-CH" -> "de"; unknown -> English
+const pickLang = l => { const k = String(l || "en").toLowerCase().split(/[-_]/)[0]; return I18N[k] ? k : "en"; };
+const fill = (s, v = {}) => s.replace(/\{(\w+)\}/g, (m, k) => v[k] ?? "");
 const BAD = ["unknown", "unavailable", ""];
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -239,11 +396,13 @@ button:disabled { opacity:.45; cursor:default; }
 
 const fmt = s => { s = Math.max(0, Math.round(s));
   return `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
-const hhmm = d => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+// English keeps the browser's own clock style; other languages use theirs (24-hour across most of Europe)
+const hhmm = (d, lang) => d.toLocaleTimeString(lang === "en" ? [] : lang, { hour: "2-digit", minute: "2-digit" });
 
 class CandyApplianceCard extends HTMLElement {
   setConfig(c) {
     this._config = setup(c); this._res = null;
+    if (this._hass || !this._s) { this._lang = pickLang(c.language || this._hass?.locale?.language || this._hass?.language); this._s = I18N[this._lang]; }
     if (this.isConnected && this._hass) { this._build(); this._render(); }
   }
   static getStubConfig() { return {}; }
@@ -255,6 +414,8 @@ class CandyApplianceCard extends HTMLElement {
   disconnectedCallback() { clearInterval(this._tick); }
   set hass(h) {
     const first = !this._hass; this._hass = h;
+    const lang = pickLang(this._config?.language || h.locale?.language || h.language);
+    if (lang !== this._lang) { this._lang = lang; this._s = I18N[lang]; if (this._res) this._build(); }
     if (!this._res || this._regRef !== h.entities) {
       const res = resolve(h, this._config); this._regRef = h.entities;
       const rebuild = !this._res || res.appliance !== this._res.appliance;
@@ -267,21 +428,21 @@ class CandyApplianceCard extends HTMLElement {
   _build() {
     if (!this._res || !this._config) return;
     const c = this._config, a = this._res.appliance, dryer = a === "dryer", g = GEOM[c.style][a];
-    const title = c.name || DEFAULTS[a].title, colour = c.colour || DEFAULTS[a].colour; this._title = title;
+    const S = this._s, title = c.name || S[a], colour = c.colour || DEFAULTS[a].colour; this._title = title;
     const r = this.shadowRoot || this.attachShadow({ mode: "open" });
     r.innerHTML = `<style>${CSS}</style>
     <ha-card class="${a} ${c.style}" style="--c:${esc(colour)}">
-      <div class="head"><span class="name">${esc(title)}</span><span class="pill" id="pill">Off</span></div>
+      <div class="head"><span class="name">${esc(title)}</span><span class="pill" id="pill">${esc(S.off)}</span></div>
       <div class="ctl" id="ctl" hidden>
-        <button id="pause"><ha-icon icon="mdi:pause"></ha-icon>Pause</button>
-        <button id="stop"><ha-icon icon="mdi:stop"></ha-icon>Stop</button>
+        <button id="pause"><ha-icon icon="mdi:pause"></ha-icon>${esc(S.pause)}</button>
+        <button id="stop"><ha-icon icon="mdi:stop"></ha-icon>${esc(S.stop)}</button>
       </div>
       <div class="go-row" id="goRow" hidden>
         <div class="favs" id="favs"></div>
-        <select id="prog" aria-label="Programme"></select>
-        <button id="go"><ha-icon icon="mdi:play"></ha-icon>Start</button>
+        <select id="prog" aria-label="${esc(S.programme)}"></select>
+        <button id="go"><ha-icon icon="mdi:play"></ha-icon>${esc(S.start)}</button>
       </div>
-      <div class="ask" id="ask" hidden><span id="askT"></span><button id="askNo">Cancel</button><button class="yes" id="askYes">Yes</button></div>
+      <div class="ask" id="ask" hidden><span id="askT"></span><button id="askNo">${esc(S.cancel)}</button><button class="yes" id="askYes">${esc(S.yes)}</button></div>
       <div class="note" id="note" hidden></div>
       <div class="pic" id="pic" style="--ratio:${g.ratio};--drum:url('${esc(candyImg(c, "laundry-drum.webp"))}');${c.max_width ? `--maxw:${esc(c.max_width)}` : ""}">
         ${c.style === "photo" ? `<img class="machine" src="${esc(candyImg(c, dryer ? "dryer.svg" : "washer.svg"))}" alt="">` : machineSVG(dryer)}
@@ -295,7 +456,7 @@ class CandyApplianceCard extends HTMLElement {
             <circle class="bar" id="bar" cx="50" cy="50" r="48" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg>
         </div>
         <div class="lcd" style="left:${g.lcd.x}%;top:${g.lcd.y}%;width:${g.lcd.w}%;height:${g.lcd.h}%"><span class="t" id="lcd">--:--</span><span class="s" id="lcdS"></span></div>
-        <div class="at icon" id="wifi" style="left:${g.wifi.x}%;top:${g.wifi.y}%" title="Remote control"><ha-icon icon="mdi:wifi"></ha-icon></div>
+        <div class="at icon" id="wifi" style="left:${g.wifi.x}%;top:${g.wifi.y}%" title="${esc(S.remote)}"><ha-icon icon="mdi:wifi"></ha-icon></div>
         <div class="at icon" id="door" style="left:${g.door.x}%;top:${g.door.y}%"><ha-icon icon="mdi:lock-open-variant"></ha-icon></div>
         <div class="panel" id="rows"></div>
       </div>
@@ -319,12 +480,12 @@ class CandyApplianceCard extends HTMLElement {
   }
 
   _ask(q) {
-    const r = this.shadowRoot, name = this._title.toLowerCase(); this._asking = q;
+    const r = this.shadowRoot, S = this._s, name = this._title.toLowerCase(); this._asking = q;
     const box = r.getElementById("ask"); box.hidden = !q;
     if (!q) return;
     box.classList.toggle("danger", q.what === "stop");
-    r.getElementById("askYes").textContent = q.what === "stop" ? "Stop" : "Start";
-    r.getElementById("askT").textContent = q.what === "stop" ? `Stop the ${name}? This cancels the current cycle.` : `Start ${q.p} on the ${name}?`;
+    r.getElementById("askYes").textContent = q.what === "stop" ? S.stop : S.start;
+    r.getElementById("askT").textContent = fill(q.what === "stop" ? S.askStop : S.askStart, { name, p: q.p });
   }
   _note(text, bad) {
     const n = this.shadowRoot.getElementById("note");
@@ -332,9 +493,9 @@ class CandyApplianceCard extends HTMLElement {
   }
   async _press(k) {
     const id = this._res.ids[k]; this._sent = null;
-    if (!id) return this._note(`Couldn't find the ${k} button. Is the integration in Full Control mode?`, true);
+    if (!id) return this._note(fill(this._s.noButton, { k: this._s[k] }), true);
     try { await this._hass.callService("button", "press", { entity_id: id }); }
-    catch (e) { this._fail(`Couldn't send that: ${e.message || e}`); }
+    catch (e) { this._fail(fill(this._s.sendFail, { e: e.message || e })); }
   }
   // the program select is local to Home Assistant (nothing is sent to the machine), so pick it and press Start straight after
   async _start(p) {
@@ -342,7 +503,7 @@ class CandyApplianceCard extends HTMLElement {
     try {
       if (this._hass.states[select]?.state !== p) await this._hass.callService("select", "select_option", { entity_id: select, option: p });
       await this._hass.callService("button", "press", { entity_id: start });
-    } catch (e) { this._fail(`Couldn't start: ${e.message || e}`); }
+    } catch (e) { this._fail(fill(this._s.startFail, { e: e.message || e })); }
   }
   _fail(msg) { this._sent = msg; this._render(); clearTimeout(this._failT); this._failT = setTimeout(() => { this._sent = null; this._render(); }, 20000); }
 
@@ -375,7 +536,7 @@ class CandyApplianceCard extends HTMLElement {
 
   _render() {
     const r = this.shadowRoot, h = this._hass; if (!r?.getElementById("pill") || !h || !this._res) return;
-    const { main, appliance, ids } = this._res, washer = appliance === "washer";
+    const { main, appliance, ids } = this._res, washer = appliance === "washer", S = this._s;
     const ms = h.states[main], attrs = ms?.attributes || {};
     const s = (ms?.state || "unavailable").toLowerCase();
     const sending = s === "sending command";
@@ -386,7 +547,7 @@ class CandyApplianceCard extends HTMLElement {
     const on = running || paused, done = st === "finished", error = st === "error";
     const ready = st === "idle" || st === "delayed start selection";
     const rawPhase = this._val("phase");
-    const phase = rawPhase && !["stopped", "idle"].includes(rawPhase.toLowerCase()) ? rawPhase : running ? "Starting…" : "";
+    const phase = rawPhase && !["stopped", "idle"].includes(rawPhase.toLowerCase()) ? S.phase[rawPhase] || rawPhase : running ? S.starting : "";
 
     const card = r.querySelector("ha-card");
     card.classList.toggle("on", on); card.classList.toggle("paused", paused);
@@ -417,9 +578,9 @@ class CandyApplianceCard extends HTMLElement {
 
     const pill = r.getElementById("pill");
     pill.className = "pill" + (on ? " run" : delayed ? " wait" : done ? " done" : error ? " bad" : "");
-    pill.textContent = sending ? "Sending…" : paused ? "Paused" : running ? phase || "Running" : delayed ? "Delayed start"
-      : done ? "Finished" : error ? "Error" : ready ? "Ready" : st === "off" ? "Off" : st === "unavailable" ? "Unavailable" : ms.state;
-    r.getElementById("phase").textContent = done ? "Finished" : paused ? "Paused" : phase;
+    pill.textContent = sending ? S.sending : paused ? S.paused : running ? phase || S.running : delayed ? S.delayed
+      : done ? S.finished : error ? S.error : ready ? S.ready : st === "off" ? S.off : st === "unavailable" ? S.unavailable : ms.state;
+    r.getElementById("phase").textContent = done ? S.finished : paused ? S.paused : phase;
 
     // controls: every Candy button is unavailable unless Remote Control is on (and while a command is being sent)
     const remoteS = this._st(ids.remote);
@@ -440,11 +601,11 @@ class CandyApplianceCard extends HTMLElement {
     const err = this._val("error");
     const notes = [];
     if (this._sent) notes.push([this._sent, true]);
-    if (error || (err && err !== "0")) notes.push([`The machine reports an error${err && err !== "0" ? ` (code ${err})` : ""}. Check it, or the notification in Home Assistant.`, true]);
-    if (!washer && attrs.water_tank_full) notes.push(["Empty the water tank.", true]);
-    if (!washer && attrs.need_clean_filter) notes.push(["Clean the filter.", false]);
-    if (paused) notes.push(["Paused. Carry on from the machine (Candy can't resume remotely).", false]);
-    if (washer && !remote && (ready || on) && ms && ids.start) notes.push(["Remote Control is off. Switch it on at the machine to control it from here.", false]);
+    if (error || (err && err !== "0")) notes.push([fill(S.machineError, { code: err && err !== "0" ? fill(S.code, { c: err }) : "" }), true]);
+    if (!washer && attrs.water_tank_full) notes.push([S.tank, true]);
+    if (!washer && attrs.need_clean_filter) notes.push([S.filter, false]);
+    if (paused) notes.push([S.pausedNote, false]);
+    if (washer && !remote && (ready || on) && ms && ids.start) notes.push([S.remoteOff, false]);
     this._note(...(notes[0] || [""]));
 
     r.getElementById("wifi").classList.toggle("lit", remote);
@@ -452,42 +613,42 @@ class CandyApplianceCard extends HTMLElement {
     if ("door_closed" in attrs) {   // dryers report the door
       const open = !attrs.door_closed;
       door.querySelector("ha-icon").setAttribute("icon", open ? "mdi:door-open" : on ? "mdi:lock" : "mdi:door-closed");
-      door.classList.toggle("lit", on && !open); door.title = open ? "Door open" : "Door closed";
+      door.classList.toggle("lit", on && !open); door.title = open ? S.doorOpen : S.doorClosed;
     } else {
       door.querySelector("ha-icon").setAttribute("icon", on ? "mdi:lock" : "mdi:lock-open-variant");
-      door.classList.toggle("lit", on); door.title = on ? "Door locked (cycle running)" : "Door unlocked";
+      door.classList.toggle("lit", on); door.title = on ? S.doorLocked : S.doorUnlocked;
     }
 
     const prog = this._val("program") ?? (attrs.program != null ? String(attrs.program) : null);
-    const progName = st === "off" || prog == null ? "—" : /^\d+$/.test(prog) ? `Programme ${prog}` : prog;
-    const rows = [["Programme", progName]];
+    const progName = st === "off" || prog == null ? "—" : /^\d+$/.test(prog) ? fill(S.progN, { n: prog }) : prog;
+    const rows = [[S.programme, progName]];
     if (washer) {
       const t = this._val("temp") ?? attrs.temperature, sp = this._val("spin") ?? attrs.spin_speed;
-      rows.push(["Temp · Spin", `${t != null && st !== "off" ? t + " °C" : "—"} · ${sp != null && String(sp) !== "0" && st !== "off" ? sp + " rpm" : "—"}`]);
+      rows.push([S.tempSpin, `${t != null && st !== "off" ? t + " °C" : "—"} · ${sp != null && String(sp) !== "0" && st !== "off" ? sp + " rpm" : "—"}`]);
     } else {
       const dl = attrs.dry_level_now ?? attrs.dry_level;
-      rows.push(["Dryness", dl != null && st !== "off" ? DRY_LEVELS[dl] || `Level ${dl}` : "—"]);
+      rows.push([S.dryness, dl != null && st !== "off" ? S.dry[dl] || fill(S.level, { n: dl }) : "—"]);
     }
-    if (on) rows.push(["Ends", isNaN(end) ? "—" : hhmm(new Date(end))]);
-    else if (delayed) rows.push(["Starts", isNaN(startsAt) ? "—" : hhmm(new Date(startsAt))]);
-    else if (washer && this._val("fill") != null && ready) rows.push(["Load", `${this._val("fill")}%`]);
-    else rows.push(["Cycles", this._val("cycles") ?? "—"]);
-    r.getElementById("rows").innerHTML = rows.map(([k, x]) => `<div class="row"><span>${k}</span><span>${esc(x)}</span></div>`).join("");
+    if (on) rows.push([S.ends, isNaN(end) ? "—" : hhmm(new Date(end), this._lang)]);
+    else if (delayed) rows.push([S.starts, isNaN(startsAt) ? "—" : hhmm(new Date(startsAt), this._lang)]);
+    else if (washer && this._val("fill") != null && ready) rows.push([S.load, `${this._val("fill")}%`]);
+    else rows.push([S.cycles, this._val("cycles") ?? "—"]);
+    r.getElementById("rows").innerHTML = rows.map(([k, x]) => `<div class="row"><span>${esc(k)}</span><span>${esc(x)}</span></div>`).join("");
     this._time();
   }
 
   _time() {
-    const r = this.shadowRoot, t = this._t; if (!r?.getElementById("bar") || !t) return;
+    const r = this.shadowRoot, t = this._t, S = this._s; if (!r?.getElementById("bar") || !t) return;
     const now = Date.now(), left = isNaN(t.end) ? NaN : (t.end - now) / 1000;
     let pct = 0;
     if (t.done) pct = 100;
     else if (t.on && !isNaN(left) && t.total > 0) pct = Math.min(100, Math.max(0, (1 - left / t.total) * 100));
     const bar = r.getElementById("bar"); bar.style.strokeDashoffset = String(100 - pct); bar.style.opacity = pct > 0 ? 1 : 0;
     const lcd = r.getElementById("lcd"), sub = r.getElementById("lcdS");
-    if (t.on && !isNaN(left)) { lcd.textContent = fmt(left); sub.textContent = t.paused ? "Paused" : `${Math.round(pct)}%`; }
-    else if (t.delayed && !isNaN(t.startsAt)) { lcd.textContent = fmt((t.startsAt - now) / 1000); sub.textContent = "Starts in"; }
-    else if (t.ready) { lcd.textContent = fmt(t.ready * 60); sub.textContent = "Ready"; }
-    else { lcd.textContent = t.done ? "End" : "--:--"; sub.textContent = ""; }
+    if (t.on && !isNaN(left)) { lcd.textContent = fmt(left); sub.textContent = t.paused ? S.paused : `${Math.round(pct)}%`; }
+    else if (t.delayed && !isNaN(t.startsAt)) { lcd.textContent = fmt((t.startsAt - now) / 1000); sub.textContent = S.startsIn; }
+    else if (t.ready) { lcd.textContent = fmt(t.ready * 60); sub.textContent = S.ready; }
+    else { lcd.textContent = t.done ? S.end : "--:--"; sub.textContent = ""; }
   }
 }
 // each name is only registered if it's free, so a second copy (e.g. a manual download plus HACS) can't stop the page with an error

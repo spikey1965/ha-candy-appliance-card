@@ -24,6 +24,7 @@ Sister card of the [hOn washer & dryer card](https://github.com/spikey1965/ha-ho
 - **Start**: while the washer is Idle, pick a programme (or tap a favourite) and press Start
 - **Pause** and **Stop** while a cycle runs (Stop asks first)
 - Notes when Remote Control is off, when the machine reports an error, and when the dryer's water tank is full or its filter needs cleaning
+- **In your language:** English, Italiano, Français, Español, Deutsch, Nederlands, Polski and Português (see [Languages](#languages))
 
 ![Picking a programme](images/start.png)
 
@@ -38,7 +39,7 @@ Sister card of the [hOn washer & dryer card](https://github.com/spikey1965/ha-ho
 Then find "Candy Appliance Card", download it, and reload the browser.
 
 **Manual:** copy `candy-appliance-card.js` to `/config/www/`, then add a dashboard resource
-(Settings → Dashboards → ⋮ → Resources): `/local/candy-appliance-card.js?v=0.1.0`, type **JavaScript module**.
+(Settings → Dashboards → ⋮ → Resources): `/local/candy-appliance-card.js?v=0.2.0`, type **JavaScript module**.
 
 ## Use
 
@@ -61,7 +62,8 @@ Without `entity`, it uses the first Candy washer it finds (or dryer, with `appli
 |---|---|---|
 | `entity` | first Candy machine | main sensor, e.g. `sensor.washing_machine` |
 | `appliance` | from the entity | `washer` or `dryer` |
-| `name` | Washer / Dryer | card title |
+| `name` | Washer / Dryer (in your language) | card title |
+| `language` | your Home Assistant language | `en` `it` `fr` `es` `de` `nl` `pl` `pt` |
 | `colour` | blue / orange | accent colour, e.g. `"#4fb3ff"` |
 | `favourites` | none | programme names exactly as in the integration's *Wash program* select, shown as quick picks |
 | `show_start` | `true` | `false` hides the programme picker |
@@ -74,6 +76,24 @@ Without `entity`, it uses the first Candy washer it finds (or dryer, with `appli
 Keys for `entities`: `phase remaining program temp spin fill finish starts estimate error cycles remote start pause stop select`.
 
 ![Black finish](images/black.png)
+
+## Languages
+
+The card speaks **English, Italian, French, Spanish, German, Dutch, Polish and Portuguese**. It follows the language in
+your Home Assistant profile, so there's nothing to set. To pick one for a single card, add `language:`:
+
+```yaml
+type: custom:candy-appliance-card
+entity: sensor.washing_machine
+language: it
+```
+
+Any other language shows English. Times follow the language too (24-hour for most of Europe).
+
+- The **status, wash phase and dryness** are translated by the card, because the integration reports them in English.
+- **Programme names** come from your machine, in the language you chose when you set up the integration.
+- The translations aren't checked by native speakers yet. If something reads oddly, or you'd like your language added,
+  please [open an issue](../../issues/new/choose) or send a pull request. All the text is in the `I18N` table near the top of the file.
 
 ## Troubleshooting
 
