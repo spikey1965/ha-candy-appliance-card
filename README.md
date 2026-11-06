@@ -35,8 +35,17 @@ Sister card of the [hOn washer & dryer card](https://github.com/spikey1965/ha-ho
 
 ## Install
 
-**HACS:** HACS → ⋮ → Custom repositories → add `https://github.com/spikey1965/ha-candy-appliance-card`, type **Dashboard**.
-Then find "Candy Appliance Card", download it, and reload the browser.
+### Marketplace (recommended)
+
+1. Go to **Settings → Marketplace** and click **Add from link**. This asks you to connect GitHub.
+2. Paste `https://github.com/spikey1965/ha-candy-appliance-card` and choose the type **Dashboard** if asked.
+3. Find **Candy Appliance Card** under **New**, open it and click **Install**. Reload your browser.
+
+Because it's a beta, Marketplace shows a short code such as `f5fa069` instead of a version number, which is normal. To get the numbered beta instead, open the **⋮ menu → Include pre-releases → Include** before you install.
+
+The first time you use Marketplace, tick **I understand the risks and agree** and click **Continue**.
+
+**On a version older than 2026.11?** Marketplace is still called HACS there. Use **Download** in place of Install and **⋮ → Custom repositories** in place of Add from link.
 
 **Manual:** copy `candy-appliance-card.js` to `/config/www/`, then add a dashboard resource
 (Settings → Dashboards → ⋮ → Resources): `/local/candy-appliance-card.js?v=0.2.0`, type **JavaScript module**.
